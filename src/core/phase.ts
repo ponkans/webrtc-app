@@ -1,7 +1,7 @@
 /**
  * 阶段标识器
  */
-type TProcess = 'start' | 'connecting' | 'connected' | 'playing';
+type TProcess = 'start' | 'createOffer' | 'reciveAnswer';
 
 class Phase {
   list: TProcess[];
@@ -9,7 +9,7 @@ class Phase {
   current: TProcess | 'disconnected';
 
   constructor() {
-    this.list = ['start', 'connecting', 'connected', 'playing'];
+    this.list = ['start', 'createOffer', 'reciveAnswer'];
     this.index = 0;
     this.current = this.list[this.index];
   }

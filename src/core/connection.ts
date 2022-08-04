@@ -5,16 +5,37 @@
 import { EventEmitter } from 'events';
 import Phase from './phase';
 
-interface IConnectionProps {}
+interface IConnectionProps {
+  peerConnection: RTCPeerConnection;
+  socket: WebSocket;
+}
 
 interface Connection extends IConnectionProps {
   phase: Phase;
 }
 
 class Connection extends EventEmitter {
-  constructor() {
+  constructor({ peerConnection, socket }: IConnectionProps) {
     super();
+    this.peerConnection = peerConnection;
+    this.socket = socket;
     this.phase = new Phase();
+  }
+
+  async connect() {
+    this.phase.reset();
+    const offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(offer);
+    this.socket.send(JSON.stringify(offer));
+    this.phase.next();
+  }
+
+  async reviceOffer(description: RTCSessionDescriptionInit) {
+    this.peerConnection.setRemoteDescription(description);
+    const answer = await this.peerConnection.createAnswer();
+    await this.peerConnection.setLocalDescription(answer);
+    this.socket.send(JSON.stringify(answer));
+    this.phase.next();
   }
 
   //    A、B 都连接信令服务器（ws）；
