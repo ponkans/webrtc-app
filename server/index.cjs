@@ -6,7 +6,15 @@ wss.on('connection', function connection(ws) {
   ws.on('message', function message(data, isBinary) {
     // 广播
     wss.clients.forEach(function each(client) {
-      if (client.readyState === WebSocket.OPEN) {
+      const { type } = JSON.parse(data.toString());
+
+      /**
+       * 排除自身
+       * 但 closeAll 放行
+       */
+      if (client === ws && !['closeAll'].includes(type)) return;
+
+      if (client.readyState === websocket.OPEN) {
         client.send(data, { binary: isBinary });
       }
     });
