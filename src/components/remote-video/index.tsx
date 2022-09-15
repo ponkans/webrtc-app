@@ -1,11 +1,18 @@
-import { useEffect, useRef, FC } from 'react';
-import type { VideoHTMLAttributes, MutableRefObject } from 'react';
-import { defaultRemoteVideoAtt } from '@/constants/video';
+import {
+  useEffect,
+  useRef,
+  FC,
+  VideoHTMLAttributes,
+  MutableRefObject,
+} from 'react';
+import { defaultVideoAtt } from '@/constants/video';
 import { CONNECTION_EVENTS } from '@/constants/events';
 import Connection from '@/core/connection';
+import { ILocalVideoRef } from '@/components/local-video';
 import './index.css';
 
 interface IRemoteVideoProps {
+  localVideoRef: MutableRefObject<ILocalVideoRef>;
   videoAtt?: VideoHTMLAttributes<Record<string, any>>;
   connectionRef?: MutableRefObject<Connection>;
   peerConnection: RTCPeerConnection;
@@ -13,17 +20,25 @@ interface IRemoteVideoProps {
 }
 
 const RemoteVideo: FC<IRemoteVideoProps> = ({
+  localVideoRef,
   videoAtt,
   connectionRef,
   peerConnection,
   socket,
 }) => {
-  const mergeVideoAtt = { ...defaultRemoteVideoAtt, ...videoAtt };
+  const mergeVideoAtt = { ...defaultVideoAtt, ...videoAtt };
   const remoteRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const connection = new Connection({ peerConnection, socket });
-    if (connectionRef) connectionRef.current = connection;
+    const connection = new Connection({
+      peerConnection,
+      socket,
+      localVideoRef,
+    });
+
+    if (connectionRef) {
+      connectionRef.current = connection;
+    }
 
     connection.on(CONNECTION_EVENTS.TRACK, (track) => {
       if (remoteRef.current) remoteRef.current.srcObject = track;
@@ -34,10 +49,14 @@ const RemoteVideo: FC<IRemoteVideoProps> = ({
     };
   }, []);
 
-  return (
-    <div>
-      <video ref={remoteRef} {...mergeVideoAtt} />
-    </div>
-  );
+  useEffect(() => {
+    if (remoteRef.current) {
+      remoteRef.current.onloadeddata = () => {
+        remoteRef.current?.play();
+      };
+    }
+  }, []);
+
+  return <video ref={remoteRef} {...mergeVideoAtt} />;
 };
 export default RemoteVideo;

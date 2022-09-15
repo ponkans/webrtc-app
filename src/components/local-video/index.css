@@ -1,3 +1,7 @@
 video {
   transform: rotateY(180deg);
 }
+
+.localVideo {
+  /* position: relative; */
+}

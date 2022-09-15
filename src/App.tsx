@@ -1,50 +1,87 @@
-import { useEffect, useRef } from 'react';
-import './App.css';
+import { useRef, useEffect, useState } from 'react';
 import LocalVideo, { ILocalVideoRef } from '@/components/local-video';
 import RemoteVideo from '@/components/remote-video';
+import ActionVideo from '@/components/action-video';
 import Connection from '@/core/connection';
+import { CONNECTION_EVENTS } from '@/constants/events';
+import './App.css';
 
-const peerConnection = new RTCPeerConnection({ bundlePolicy: 'max-bundle' });
+const peerConnection = new RTCPeerConnection({
+  bundlePolicy: 'max-bundle',
+});
 const socket = new WebSocket('ws://localhost:5000');
+
+export enum videoStatus {
+  /**
+   * 初始化状态
+   */
+  init = 0,
+
+  /**
+   * 视频中
+   */
+  calling = 1,
+
+  /**
+   * 结束通话
+   * peerConnection close
+   * localStream close
+   */
+  close = 2,
+}
 
 const App = () => {
   const localVideoRef = useRef<ILocalVideoRef>({} as ILocalVideoRef);
   const connectionRef = useRef<Connection>({} as Connection);
+  const [status, setStatus] = useState<videoStatus>(videoStatus.init);
 
   useEffect(() => {
-    socket.onmessage = async (e) => {
-      const { type, sdp } = JSON.parse(e.data);
+    localVideoRef.current.startLocal();
+  }, []);
+
+  /**
+   * 监听 socket 服务信息
+   */
+  useEffect(() => {
+    socket.onmessage = (e) => {
+      connectionRef.current.emit(CONNECTION_EVENTS.MESSAGE, e);
+      const { type } = JSON.parse(e.data);
       switch (type) {
         case 'offer':
-          await connectionRef.current.reviceOffer(
-            new RTCSessionDescription({ type, sdp })
-          );
-          break;
         case 'answer':
+          setStatus(videoStatus.calling);
           break;
-        case 'answer_ice':
-          break;
-        case 'offer_ice':
+        case 'closeAll':
+          setStatus(videoStatus.close);
+          localVideoRef.current.closeCall();
           break;
       }
     };
   }, []);
 
-  const startVideoCall = async () => {
-    await localVideoRef.current.startLocal();
-    await connectionRef.current.connect();
-  };
-
   return (
-    <div>
-      <button onClick={startVideoCall}>开始视频通话</button>
-      <LocalVideo
+    <div className='app'>
+      <div className='remote'>
+        <div className='local'>
+          <LocalVideo
+            localVideoRef={localVideoRef}
+            peerConnection={peerConnection}
+            videoAtt={{ width: 80, height: 80 }}
+          />
+        </div>
+        <RemoteVideo
+          localVideoRef={localVideoRef}
+          connectionRef={connectionRef}
+          peerConnection={peerConnection}
+          socket={socket}
+          videoAtt={{ width: 500, height: 500 }}
+        />
+      </div>
+      <ActionVideo
+        status={status}
+        setStatus={setStatus}
         localVideoRef={localVideoRef}
-        peerConnection={peerConnection}
-      />
-      <RemoteVideo
         connectionRef={connectionRef}
-        peerConnection={peerConnection}
         socket={socket}
       />
     </div>
